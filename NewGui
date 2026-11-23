@@ -363,9 +363,8 @@ function Library:CreateWindow(opts)
                 GetValue = function() return state end,
                 OnChanged = function(self, cb) table.insert(extraCallbacks, cb) end,
             }
-            _G.Toggles = _G.Toggles or {}
-            _G.Toggles[key] = api
-            getgenv().Toggles = _G.Toggles
+            getgenv().Toggles = getgenv().Toggles or {}
+            getgenv().Toggles[key] = api
             update()
             return api
         end
@@ -967,10 +966,6 @@ function Library:CreateWindow(opts)
     return Win
 end
 
-local Library = Library
-local ThemeManager = Library.ThemeManager
-local SaveManager = Library.SaveManager
-
 local Window = Library:CreateWindow({
     Title = "Sigma Universal",
     Footer = "by @sigmatop1jj | t.me/megaswitifox | v5.5",
@@ -1138,27 +1133,6 @@ local function IsGunTool(tool)
         end
     end
     return false
-end
-
-local function GetFireRate(tool)
-    if not tool then return 0.1 end
-    local keys = {"FireDelay","FireRate","ShootCooldown","Cooldown","Delay","ShotDelay","AttackSpeed"}
-    for _, k in ipairs(keys) do
-        local v = tool:GetAttribute(k)
-        if type(v) == "number" and v > 0 then
-            if k == "FireRate" then return math.max(0.05, 1/v) end
-            return math.max(0.05, math.min(2, v))
-        end
-    end
-    for _, c in ipairs(tool:GetDescendants()) do
-        if c:IsA("NumberValue") or c:IsA("IntValue") then
-            local n = string.lower(c.Name)
-            if (string.find(n, "fire") or string.find(n, "shoot") or string.find(n, "delay") or string.find(n, "cooldown")) then
-                if c.Value > 0 and c.Value < 3 then return math.max(0.05, c.Value) end
-            end
-        end
-    end
-    return 0.1
 end
 
 local Combat = Window:AddTab("Combat")
@@ -1354,13 +1328,6 @@ SG:AddButton("Unload", function()
         end
     end)
     pcall(function() if Cam then Cam.FieldOfView = SavedFOV end end)
-    pcall(function()
-        local cg = game:GetService("CoreGui")
-        for _, n in ipairs({"SigmaWatermark", "SigmaStats", "SigmaHitLogs", "SigmaTargetHUD", "SigmaPlayerList"}) do
-            local o = cg:FindFirstChild(n)
-            if o then o:Destroy() end
-        end
-    end)
     pcall(function() Library:Unload() end)
 end)
 local CreditGroup = Settings:AddRightGroupbox("Credits")
@@ -1369,113 +1336,21 @@ CreditGroup:AddLabel("Author: @sigmatop1jj")
 CreditGroup:AddLabel("Telegram: @megaswitifox")
 CreditGroup:AddDivider()
 CreditGroup:AddButton("Copy Telegram", function()
-    pcall(function() if setclipboard then setclipboard("https://t.me/megaswitifox"); Library:Notify("Copied: t.me/megaswitifox", 3) end end)
+    pcall(function() if setclipboard then setclipboard("https://t.me/megaswitifox"); Library:Notify("Copied", 3) end end)
 end)
 
-local watermarkGui = Instance.new("ScreenGui")
-watermarkGui.Name = "SigmaWatermark"; watermarkGui.ResetOnSpawn = false
-watermarkGui.IgnoreGuiInset = true; watermarkGui.DisplayOrder = 10000
-pcall(function() watermarkGui.Parent = game:GetService("CoreGui") end)
-if not watermarkGui.Parent then watermarkGui.Parent = LP:WaitForChild("PlayerGui") end
 local watermark = Instance.new("TextLabel")
 watermark.Size = UDim2.new(0, 500, 0, 25); watermark.Position = UDim2.new(1, -510, 0, 10)
 watermark.BackgroundTransparency = 1; watermark.Font = Enum.Font.GothamBold
 watermark.TextSize = 14; watermark.TextColor3 = Color3.fromRGB(180, 100, 255)
 watermark.TextStrokeTransparency = 0.5; watermark.TextXAlignment = Enum.TextXAlignment.Right
 watermark.Text = "Sigma v5.5 | @sigmatop1jj | t.me/megaswitifox"; watermark.Visible = false
-watermark.Parent = watermarkGui
+watermark.Parent = ScreenGui
 local watermarkRainbow, watermarkElapsed = false, 0
 
-ThemeManager:SetLibrary(Library)
-SaveManager:SetLibrary(Library)
-SaveManager:IgnoreThemeSettings()
-SaveManager:SetIgnoreIndexes({ "MenuKeybind" })
-ThemeManager:SetFolder("SigmaUniversal")
-SaveManager:SetFolder("SigmaUniversal")
-SaveManager:BuildConfigSection(Settings)
-ThemeManager:ApplyToTab(Settings)
-SaveManager:LoadAutoloadConfig()
-
-local statsGui = Instance.new("ScreenGui")
-statsGui.Name = "SigmaStats"; statsGui.ResetOnSpawn = false
-statsGui.IgnoreGuiInset = true; statsGui.DisplayOrder = 10001
-pcall(function() statsGui.Parent = game:GetService("CoreGui") end)
-if not statsGui.Parent then statsGui.Parent = LP:WaitForChild("PlayerGui") end
-local statsFrame = Instance.new("Frame")
-statsFrame.BackgroundColor3 = Color3.fromRGB(20,20,25); statsFrame.BackgroundTransparency = 0.4
-statsFrame.BorderSizePixel = 0; statsFrame.Size = UDim2.new(0,180,0,100)
-statsFrame.Position = UDim2.new(0,10,0,10); statsFrame.Visible = false; statsFrame.Parent = statsGui
-Instance.new("UICorner", statsFrame).CornerRadius = UDim.new(0,6)
-local statsStroke = Instance.new("UIStroke")
-statsStroke.Color = Color3.fromRGB(180,100,255); statsStroke.Thickness = 1; statsStroke.Parent = statsFrame
-local statsTitle = Instance.new("TextLabel")
-statsTitle.Size = UDim2.new(1,0,0,22); statsTitle.BackgroundColor3 = Color3.fromRGB(30,30,38)
-statsTitle.BorderSizePixel = 0; statsTitle.Font = Enum.Font.GothamBold; statsTitle.TextSize = 12
-statsTitle.TextColor3 = Color3.fromRGB(180,100,255); statsTitle.Text = "SIGMA STATS"; statsTitle.Parent = statsFrame
-Instance.new("UICorner", statsTitle).CornerRadius = UDim.new(0,6)
-local statsLabel = Instance.new("TextLabel")
-statsLabel.Size = UDim2.new(1,-12,1,-28); statsLabel.Position = UDim2.new(0,6,0,24)
-statsLabel.BackgroundTransparency = 1; statsLabel.Font = Enum.Font.Code; statsLabel.TextSize = 13
-statsLabel.TextColor3 = Color3.new(1,1,1); statsLabel.TextXAlignment = Enum.TextXAlignment.Left
-statsLabel.TextYAlignment = Enum.TextYAlignment.Top; statsLabel.Text = ""; statsLabel.Parent = statsFrame
-local fpsFrames, fpsTime, currentFPS = 0, 0, 0
-RunService.RenderStepped:Connect(function(dt)
-    fpsFrames = fpsFrames + 1; fpsTime = fpsTime + dt
-    if fpsTime >= 1 then currentFPS = math.floor(fpsFrames/fpsTime); fpsFrames, fpsTime = 0, 0 end
-end)
-local function GetPing()
-    local ok, ping = pcall(function() return game:GetService("Stats").Network.ServerStatsItem["Data Ping"]:GetValue() end)
-    if ok and ping then return math.floor(ping) end
-    return 0
-end
-local statsElapsed = 0
-RunService.Heartbeat:Connect(function(dt)
-    pcall(function()
-        if not Vars.StatsEnabled then statsFrame.Visible = false; return end
-        statsFrame.Visible = true; statsElapsed = statsElapsed + (dt or 0)
-        local lines = {}
-        if Vars.StatsShowFPS then table.insert(lines, "FPS: "..currentFPS) end
-        if Vars.StatsShowPing then table.insert(lines, "Ping: "..GetPing().."ms") end
-        if Vars.StatsShowMemory then
-            local ok, mem = pcall(function() return math.floor(game:GetService("Stats"):GetTotalMemoryUsageMb()) end)
-            if ok and mem then table.insert(lines, "Mem: "..mem.."MB") end
-        end
-        if Vars.StatsShowTime then table.insert(lines, "Time: "..os.date("%H:%M:%S")) end
-        statsLabel.Text = table.concat(lines, "\n")
-        if Vars.StatsRainbow then
-            local col = Color3.fromHSV((statsElapsed*0.5)%1, 1, 1)
-            statsTitle.TextColor3 = col; statsStroke.Color = col
-        else statsTitle.TextColor3 = Color3.fromRGB(180,100,255); statsStroke.Color = Color3.fromRGB(180,100,255) end
-    end)
-end)
-local function ApplyStatsPosition(pos)
-    if pos == "TopLeft" then statsFrame.Position = UDim2.new(0,10,0,10)
-    elseif pos == "TopRight" then statsFrame.Position = UDim2.new(1,-190,0,10)
-    elseif pos == "BottomLeft" then statsFrame.Position = UDim2.new(0,10,1,-110)
-    elseif pos == "BottomRight" then statsFrame.Position = UDim2.new(1,-190,1,-110) end
-end
-
 local CustomGroup = Settings:AddLeftGroupbox("Customization")
-CustomGroup:AddDivider()
 CustomGroup:AddToggle("WatermarkEnabled", { Text = "Watermark", Default = false, Callback = function(v) watermark.Visible = v end })
-CustomGroup:AddDropdown("WatermarkPos", {
-    Text = "Watermark Position", Values = {"TopRight","TopLeft","BottomRight","BottomLeft"}, Default = "TopRight",
-    Callback = function(pos)
-        if pos == "TopRight" then watermark.AnchorPoint = Vector2.new(0,0); watermark.Position = UDim2.new(1,-510,0,10); watermark.TextXAlignment = Enum.TextXAlignment.Right
-        elseif pos == "TopLeft" then watermark.AnchorPoint = Vector2.new(0,0); watermark.Position = UDim2.new(0,10,0,10); watermark.TextXAlignment = Enum.TextXAlignment.Left
-        elseif pos == "BottomRight" then watermark.AnchorPoint = Vector2.new(0,0); watermark.Position = UDim2.new(1,-510,1,-30); watermark.TextXAlignment = Enum.TextXAlignment.Right
-        elseif pos == "BottomLeft" then watermark.AnchorPoint = Vector2.new(0,0); watermark.Position = UDim2.new(0,10,1,-30); watermark.TextXAlignment = Enum.TextXAlignment.Left end
-    end,
-})
 CustomGroup:AddToggle("WatermarkRainbow", { Text = "Watermark Rainbow", Default = false, Callback = function(v) watermarkRainbow = v end })
-CustomGroup:AddDivider()
-CustomGroup:AddToggle("StatsEnabled", { Text = "FPS/Ping Stats", Default = false, Callback = function(v) Vars.StatsEnabled = v end })
-CustomGroup:AddDropdown("StatsPosition", { Text = "Stats Position", Values = {"TopLeft","TopRight","BottomLeft","BottomRight"}, Default = "TopLeft", Callback = function(v) ApplyStatsPosition(v) end })
-CustomGroup:AddToggle("StatsShowFPS", { Text = "Show FPS", Default = true, Callback = function(v) Vars.StatsShowFPS = v end })
-CustomGroup:AddToggle("StatsShowPing", { Text = "Show Ping", Default = true, Callback = function(v) Vars.StatsShowPing = v end })
-CustomGroup:AddToggle("StatsShowMemory", { Text = "Show Memory", Default = true, Callback = function(v) Vars.StatsShowMemory = v end })
-CustomGroup:AddToggle("StatsShowTime", { Text = "Show Time", Default = false, Callback = function(v) Vars.StatsShowTime = v end })
-CustomGroup:AddToggle("StatsRainbow", { Text = "Stats Rainbow", Default = false, Callback = function(v) Vars.StatsRainbow = v end })
 RunService.RenderStepped:Connect(function(dt)
     pcall(function()
         if watermarkRainbow and watermark.Visible then
@@ -1485,16 +1360,11 @@ RunService.RenderStepped:Connect(function(dt)
     end)
 end)
 
-local hitLogsGui = Instance.new("ScreenGui")
-hitLogsGui.Name = "SigmaHitLogs"; hitLogsGui.ResetOnSpawn = false
-hitLogsGui.IgnoreGuiInset = true; hitLogsGui.DisplayOrder = 9998
-pcall(function() hitLogsGui.Parent = game:GetService("CoreGui") end)
-if not hitLogsGui.Parent then hitLogsGui.Parent = LP:WaitForChild("PlayerGui") end
 local hitLogsHolder = Instance.new("Frame")
 hitLogsHolder.BackgroundTransparency = 1; hitLogsHolder.BorderSizePixel = 0
 hitLogsHolder.AutomaticSize = Enum.AutomaticSize.XY; hitLogsHolder.Size = UDim2.fromOffset(0,0)
 hitLogsHolder.AnchorPoint = Vector2.new(0.5,0); hitLogsHolder.Position = UDim2.new(0.5,0,0.62,0)
-hitLogsHolder.Parent = hitLogsGui
+hitLogsHolder.Parent = ScreenGui
 local hitLogsLayout = Instance.new("UIListLayout")
 hitLogsLayout.SortOrder = Enum.SortOrder.LayoutOrder; hitLogsLayout.Parent = hitLogsHolder
 function ApplyHitLogsPos()
@@ -1517,26 +1387,21 @@ local function ShowHitLog(playerName, partName, dmg, health, killed)
     label.TextColor3 = killed and Color3.fromRGB(255,55,55) or Color3.new(1,1,1)
     label.TextStrokeColor3 = Color3.new(0,0,0); label.TextStrokeTransparency = 1; label.TextTransparency = 1
     label.RichText = true
-    label.Text = string.format('[ <font color="rgb(%d,%d,%d)">SIGMA</font> ] Hit %s in the %s for %s damage (%s HP left)', r,g,b, tostring(playerName), tostring(partName), tostring(dmg), tostring(health))
+    label.Text = string.format('[ <font color="rgb(%d,%d,%d)">SIGMA</font> ] Hit %s in %s for %s damage (%s HP)', r,g,b, tostring(playerName), tostring(partName), tostring(dmg), tostring(health))
     label.TextXAlignment = Enum.TextXAlignment.Left; label.ZIndex = 10
-    TweenService:Create(label, TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextTransparency = 0, TextStrokeTransparency = 0.35 }):Play()
+    TweenService:Create(label, TweenInfo.new(0.18), { TextTransparency = 0, TextStrokeTransparency = 0.35 }):Play()
     task.delay(Vars.HitLogsDuration, function()
         if not label or not label.Parent then return end
-        local tw = TweenService:Create(label, TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { TextTransparency = 1, TextStrokeTransparency = 1 })
+        local tw = TweenService:Create(label, TweenInfo.new(0.35), { TextTransparency = 1, TextStrokeTransparency = 1 })
         tw:Play(); tw.Completed:Wait(); pcall(function() label:Destroy() end)
     end)
 end
 
-local targetHudGui = Instance.new("ScreenGui")
-targetHudGui.Name = "SigmaTargetHUD"; targetHudGui.ResetOnSpawn = false
-targetHudGui.IgnoreGuiInset = true; targetHudGui.DisplayOrder = 9999
-pcall(function() targetHudGui.Parent = game:GetService("CoreGui") end)
-if not targetHudGui.Parent then targetHudGui.Parent = LP:WaitForChild("PlayerGui") end
-targetHudGui.Enabled = false
 local thFrame = Instance.new("Frame")
 thFrame.Size = UDim2.new(0,320,0,104); thFrame.AnchorPoint = Vector2.new(0.5,0.5)
 thFrame.Position = UDim2.new(0.5,0,0.85,0); thFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-thFrame.BackgroundTransparency = 0.1; thFrame.BorderSizePixel = 0; thFrame.Parent = targetHudGui
+thFrame.BackgroundTransparency = 0.1; thFrame.BorderSizePixel = 0; thFrame.Parent = ScreenGui
+thFrame.Visible = false
 Instance.new("UICorner", thFrame).CornerRadius = UDim.new(0,8)
 local thAvatar = Instance.new("ImageLabel")
 thAvatar.Size = UDim2.new(0,60,0,60); thAvatar.Position = UDim2.new(0,15,0,15)
@@ -1566,130 +1431,6 @@ local thHpGrad = Instance.new("UIGradient")
 thHpGrad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(255,60,150)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,230,50))}
 thHpGrad.Parent = thHpFill
 local lastTargetHUD, chams = 0, {}
-
-local plGui = Instance.new("ScreenGui")
-plGui.Name = "SigmaPlayerList"; plGui.ResetOnSpawn = false
-plGui.IgnoreGuiInset = true; plGui.DisplayOrder = 9996
-pcall(function() plGui.Parent = game:GetService("CoreGui") end)
-if not plGui.Parent then plGui.Parent = LP:WaitForChild("PlayerGui") end
-plGui.Enabled = false
-
-local plFrame = Instance.new("Frame")
-plFrame.Size = UDim2.new(0, 240, 0, 420)
-plFrame.Position = UDim2.new(0, 10, 0.25, 0)
-plFrame.BackgroundColor3 = Color3.fromRGB(22, 22, 26)
-plFrame.BorderSizePixel = 0; plFrame.Active = true; plFrame.Draggable = true
-plFrame.Parent = plGui
-Instance.new("UICorner", plFrame).CornerRadius = UDim.new(0, 8)
-
-local plStroke = Instance.new("UIStroke")
-plStroke.Color = Color3.fromRGB(50, 50, 60); plStroke.Thickness = 1; plStroke.Parent = plFrame
-
-local plTitle = Instance.new("Frame")
-plTitle.Size = UDim2.new(1, 0, 0, 32); plTitle.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
-plTitle.BorderSizePixel = 0; plTitle.Parent = plFrame
-Instance.new("UICorner", plTitle).CornerRadius = UDim.new(0, 8)
-
-local plAccent = Instance.new("Frame")
-plAccent.Size = UDim2.new(0, 3, 0, 20); plAccent.Position = UDim2.new(0, 8, 0.5, -10)
-plAccent.BackgroundColor3 = Color3.fromRGB(120, 70, 200); plAccent.BorderSizePixel = 0
-plAccent.Parent = plTitle
-Instance.new("UICorner", plAccent).CornerRadius = UDim.new(1, 0)
-
-local plTitleText = Instance.new("TextLabel")
-plTitleText.Size = UDim2.new(1, -30, 1, 0); plTitleText.Position = UDim2.new(0, 20, 0, 0)
-plTitleText.BackgroundTransparency = 1; plTitleText.Font = Enum.Font.GothamBold
-plTitleText.TextSize = 13; plTitleText.TextColor3 = Color3.new(1, 1, 1)
-plTitleText.Text = "Player List"; plTitleText.TextXAlignment = Enum.TextXAlignment.Left
-plTitleText.Parent = plTitle
-
-local plScroll = Instance.new("ScrollingFrame")
-plScroll.Size = UDim2.new(1, -12, 1, -42); plScroll.Position = UDim2.new(0, 6, 0, 36)
-plScroll.BackgroundTransparency = 1; plScroll.BorderSizePixel = 0
-plScroll.ScrollBarThickness = 3; plScroll.ScrollBarImageColor3 = Color3.fromRGB(120, 70, 200)
-plScroll.CanvasSize = UDim2.new(0, 0, 0, 0); plScroll.Parent = plFrame
-
-local plLayout = Instance.new("UIListLayout")
-plLayout.Padding = UDim.new(0, 4); plLayout.SortOrder = Enum.SortOrder.LayoutOrder; plLayout.Parent = plScroll
-
-local plRows = {}
-
-local function RebuildPlayerList()
-    for _, row in pairs(plRows) do 
-        if row.Frame then pcall(function() row.Frame:Destroy() end) end 
-    end
-    plRows = {}
-    local players = {}
-    for _, p in ipairs(Players:GetPlayers()) do if p ~= LP then table.insert(players, p) end end
-    local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-    if myRoot then
-        table.sort(players, function(a, b)
-            local aD = a.Character and a.Character:FindFirstChild("HumanoidRootPart") and (a.Character.HumanoidRootPart.Position - myRoot.Position).Magnitude or math.huge
-            local bD = b.Character and b.Character:FindFirstChild("HumanoidRootPart") and (b.Character.HumanoidRootPart.Position - myRoot.Position).Magnitude or math.huge
-            return aD < bD
-        end)
-    end
-    for i, p in ipairs(players) do
-        local row = Instance.new("Frame")
-        row.Size = UDim2.new(1, 0, 0, 48); row.BackgroundColor3 = Color3.fromRGB(30, 30, 36)
-        row.BorderSizePixel = 0; row.LayoutOrder = i; row.Parent = plScroll
-        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 5)
-        local rowStroke = Instance.new("UIStroke")
-        rowStroke.Color = Color3.fromRGB(45, 45, 52); rowStroke.Thickness = 1; rowStroke.Parent = row
-        local nameLbl = Instance.new("TextLabel")
-        nameLbl.Size = UDim2.new(1, -70, 0, 18); nameLbl.Position = UDim2.new(0, 8, 0, 4)
-        nameLbl.BackgroundTransparency = 1; nameLbl.Font = Enum.Font.GothamBold; nameLbl.TextSize = 12
-        nameLbl.TextColor3 = Color3.new(1, 1, 1); nameLbl.TextXAlignment = Enum.TextXAlignment.Left
-        nameLbl.Text = p.Name; nameLbl.TextTruncate = Enum.TextTruncate.AtEnd; nameLbl.Parent = row
-        local distLbl = Instance.new("TextLabel")
-        distLbl.Size = UDim2.new(0, 60, 0, 16); distLbl.Position = UDim2.new(1, -68, 0, 5)
-        distLbl.BackgroundTransparency = 1; distLbl.Font = Enum.Font.GothamMedium; distLbl.TextSize = 11
-        distLbl.TextColor3 = Color3.fromRGB(180, 180, 190); distLbl.TextXAlignment = Enum.TextXAlignment.Right
-        distLbl.Text = "0m"; distLbl.Parent = row
-        local hpBg = Instance.new("Frame")
-        hpBg.Size = UDim2.new(1, -16, 0, 12); hpBg.Position = UDim2.new(0, 8, 0, 28)
-        hpBg.BackgroundColor3 = Color3.fromRGB(15, 15, 18); hpBg.BorderSizePixel = 0; hpBg.Parent = row
-        Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0, 3)
-        local hpFill = Instance.new("Frame")
-        hpFill.Size = UDim2.new(1, 0, 1, 0); hpFill.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
-        hpFill.BorderSizePixel = 0; hpFill.Parent = hpBg
-        Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0, 3)
-        plRows[p] = {Frame = row, NameLabel = nameLbl, DistLabel = distLbl, HPFill = hpFill}
-    end
-    plScroll.CanvasSize = UDim2.new(0, 0, 0, plLayout.AbsoluteContentSize.Y + 6)
-end
-
-RunService.Heartbeat:Connect(function()
-    pcall(function()
-        if not Vars.PlayerListEnabled then plGui.Enabled = false; return end
-        plGui.Enabled = true
-        local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
-        for p, row in pairs(plRows) do
-            if row.Frame and row.Frame.Parent then
-                if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                    local hum = p.Character:FindFirstChildOfClass("Humanoid")
-                    local hrp = p.Character.HumanoidRootPart
-                    local dist = myRoot and math.floor((myRoot.Position - hrp.Position).Magnitude) or 0
-                    row.DistLabel.Text = dist .. "m"
-                    if hum then
-                        local hp = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
-                        row.HPFill.Size = UDim2.new(hp, 0, 1, 0)
-                        local r = math.floor(255 * (1 - hp))
-                        local g = math.floor(200 * hp)
-                        row.HPFill.BackgroundColor3 = Color3.fromRGB(r, g, 60)
-                    end
-                else 
-                    row.DistLabel.Text = "dead"
-                    row.HPFill.Size = UDim2.new(0, 0, 1, 0)
-                end
-            end
-        end
-    end)
-end)
-
-Players.PlayerAdded:Connect(function() task.wait(0.5); pcall(RebuildPlayerList) end)
-Players.PlayerRemoving:Connect(function() task.wait(0.5); pcall(RebuildPlayerList) end)
-task.spawn(function() task.wait(2); pcall(RebuildPlayerList) end)
 
 local ffOriginalColors, ffConnection = {}, nil
 local function FF_Save(char)
@@ -1997,9 +1738,6 @@ local function BigHeadLoop()
 end
 RunService.RenderStepped:Connect(BigHeadLoop); RunService.Heartbeat:Connect(BigHeadLoop); RunService.Stepped:Connect(BigHeadLoop)
 Players.PlayerRemoving:Connect(function(p) if p.Character then RestoreBigHead(p.Character) end end)
-task.spawn(function()
-    while true do task.wait(10); for ch in pairs(frozenHeadOriginal) do if not ch or not ch.Parent then frozenHeadOriginal[ch] = nil end end end
-end)
 
 local lastTriggerTime = 0
 local function ClickMouse()
@@ -2421,6 +2159,38 @@ RunService.Heartbeat:Connect(function()
     end)
 end)
 
+task.spawn(function()
+    task.wait(2)
+    pcall(function()
+        if getgenv().Toggles and getgenv().Toggles.NoclipEnabled then
+            getgenv().Toggles.NoclipEnabled:OnChanged(function(v)
+                if not v and LP.Character then
+                    for _, part in ipairs(LP.Character:GetDescendants()) do
+                        if part:IsA("BasePart") then pcall(function() part.CanCollide = true end) end
+                    end
+                end
+            end)
+        end
+        if getgenv().Toggles and getgenv().Toggles.BhopSpeedEnabled then
+            getgenv().Toggles.BhopSpeedEnabled:OnChanged(function(v)
+                if not v then
+                    Vars.BhopCurrentSpeed = 16
+                    if LP.Character then local hum = LP.Character:FindFirstChildOfClass("Humanoid"); if hum then hum.WalkSpeed = 16 end end
+                end
+            end)
+        end
+        if getgenv().Toggles and getgenv().Toggles.FovChanger then
+            getgenv().Toggles.FovChanger:OnChanged(function(v)
+                if not v then if Cam then Cam.FieldOfView = SavedFOV end
+                else if Cam then SavedFOV = Cam.FieldOfView end end
+            end)
+        end
+        if getgenv().Toggles and getgenv().Toggles.FFEnabled then getgenv().Toggles.FFEnabled:OnChanged(function(v) FF_Toggle(v) end) end
+        if getgenv().Toggles and getgenv().Toggles.ClassicAuraEnabled then getgenv().Toggles.ClassicAuraEnabled:OnChanged(function() Aura_RefreshAll() end) end
+        if getgenv().Toggles and getgenv().Toggles.ParticleAuraEnabled then getgenv().Toggles.ParticleAuraEnabled:OnChanged(function() PA_RefreshAll() end) end
+    end)
+end)
+
 RunService.RenderStepped:Connect(function()
     pcall(function()
         if not Vars.ThirdPersonEnabled then return end
@@ -2688,12 +2458,12 @@ Players.PlayerRemoving:Connect(RemoveChams)
 
 RunService.Heartbeat:Connect(function()
     pcall(function()
-        if not Vars.TargetHUDEnabled or not currentAimTarget then targetHudGui.Enabled = false; return end
-        local ch = currentAimTarget; if not ch.Parent then targetHudGui.Enabled = false; return end
+        if not Vars.TargetHUDEnabled or not currentAimTarget then thFrame.Visible = false; return end
+        local ch = currentAimTarget; if not ch.Parent then thFrame.Visible = false; return end
         local hum = ch:FindFirstChild("Humanoid"); local hrp = ch:FindFirstChild("HumanoidRootPart")
-        if not hum or not hrp or hum.Health <= 0 then targetHudGui.Enabled = false; return end
+        if not hum or not hrp or hum.Health <= 0 then thFrame.Visible = false; return end
         local now = tick(); if now - lastTargetHUD < 0.15 then return end; lastTargetHUD = now
-        targetHudGui.Enabled = true
+        thFrame.Visible = true
         local pl = Players:GetPlayerFromCharacter(ch)
         if pl then
             thName.Text = pl.DisplayName
