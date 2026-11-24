@@ -1332,4 +1332,339 @@ RunService.RenderStepped:Connect(function()
         end
         local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
         for p, data in pairs(ESP_Data) do
-            local hide = not p.Character or
+            local hide = not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") or not myRoot
+            if not hide and Vars.ESPTeamCheck and p.Team == LP.Team then hide = true end
+            if hide then
+                data.box.Visible=false; data.name.Visible=false; data.dist.Visible=false
+                data.health.Visible=false; data.weapon.Visible=false; data.flags.Visible=false
+            else
+                local root = p.Character.HumanoidRootPart
+                local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                local head = p.Character:FindFirstChild("Head") or root
+                local dist = (myRoot.Position - root.Position).Magnitude
+                if dist > Vars.ESPMaxDistance then
+                    data.box.Visible=false; data.name.Visible=false; data.dist.Visible=false
+                    data.health.Visible=false; data.weapon.Visible=false; data.flags.Visible=false
+                else
+                    local pos, onScreen = Cam:WorldToViewportPoint(root.Position)
+                    local headPos = Cam:WorldToViewportPoint(head.Position + Vector3.new(0,0.5,0))
+                    if not onScreen then
+                        data.box.Visible=false; data.name.Visible=false; data.dist.Visible=false
+                        data.health.Visible=false; data.weapon.Visible=false; data.flags.Visible=false
+                    else
+                        local h = math.abs(pos.Y - headPos.Y)*2.2
+                        local w = h * 0.6
+                        local boxPos = Vector2.new(pos.X - w/2, pos.Y - h/2)
+                        data.box.Visible = Vars.ESPBox; data.box.Color = Vars.ESPBoxColor
+                        data.box.Size = Vector2.new(w, h); data.box.Position = boxPos
+                        data.name.Visible = Vars.ESPName; data.name.Color = Vars.ESPTextColor
+                        data.name.Text = p.Name; data.name.Position = Vector2.new(pos.X, boxPos.Y - 34)
+                        data.dist.Visible = Vars.ESPDistance; data.dist.Color = Vars.ESPTextColor
+                        data.dist.Text = "["..math.floor(dist).."m]"; data.dist.Position = Vector2.new(pos.X, boxPos.Y - 18)
+                        if Vars.ESPHealthBar and hum then
+                            data.health.Visible = true; local hp = hum.Health / hum.MaxHealth
+                            data.health.Color = Color3.fromRGB(255*(1-hp), 255*hp, 0)
+                            data.health.Size = Vector2.new(2, h*hp)
+                            data.health.Position = Vector2.new(boxPos.X - 5, boxPos.Y + h*(1-hp))
+                        else data.health.Visible = false end
+                        if Vars.ESPWeapon then
+                            data.weapon.Visible = true; data.weapon.Color = Vars.ESPTextColor
+                            data.weapon.Text = GetWeapon(p); data.weapon.Position = Vector2.new(pos.X, boxPos.Y + h + 5)
+                        else data.weapon.Visible = false end
+                        if Vars.ESPFlags and hum then
+                            local flags = {}
+                            local state = hum:GetState()
+                            if hum.MoveDirection.Magnitude > 0 then table.insert(flags, "W") end
+                            if state == Enum.HumanoidStateType.Jumping or state == Enum.HumanoidStateType.Freefall then table.insert(flags, "J") end
+                            if state == Enum.HumanoidStateType.Swimming then table.insert(flags, "S") end
+                            if #flags > 0 then
+                                data.flags.Visible = true; data.flags.Color = Vars.ESPTextColor
+                                data.flags.Text = table.concat(flags, " ")
+                                data.flags.Position = Vector2.new(boxPos.X + w + 5, boxPos.Y)
+                            else data.flags.Visible = false end
+                        else data.flags.Visible = false end
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+local SkeletonData = {}
+local SkeletonConnections_R15 = {
+    {"Head","UpperTorso"},{"UpperTorso","LowerTorso"},{"UpperTorso","LeftUpperArm"},{"LeftUpperArm","LeftLowerArm"},{"LeftLowerArm","LeftHand"},
+    {"UpperTorso","RightUpperArm"},{"RightUpperArm","RightLowerArm"},{"RightLowerArm","RightHand"},
+    {"LowerTorso","LeftUpperLeg"},{"LeftUpperLeg","LeftLowerLeg"},{"LeftLowerLeg","LeftFoot"},
+    {"LowerTorso","RightUpperLeg"},{"RightUpperLeg","RightLowerLeg"},{"RightLowerLeg","RightFoot"},
+}
+local SkeletonConnections_R6 = {{"Head","Torso"},{"Torso","Left Arm"},{"Torso","Right Arm"},{"Torso","Left Leg"},{"Torso","Right Leg"}}
+local function MakeSkeleton(p)
+    if not p or p == LP then return end
+    if SkeletonData[p] then for _, l in ipairs(SkeletonData[p]) do pcall(function() l:Remove() end) end end
+    local lines = {}
+    for i = 1, 14 do
+        local l = Drawing.new("Line"); l.Visible = false; l.Thickness = 1.5; l.Color = WHITE; l.ZIndex = 4
+        table.insert(lines, l)
+    end
+    SkeletonData[p] = lines
+end
+local function RemoveSkeleton(p)
+    if SkeletonData[p] then for _, l in ipairs(SkeletonData[p]) do pcall(function() l:Remove() end) end; SkeletonData[p] = nil end
+end
+for _, p in ipairs(Players:GetPlayers()) do MakeSkeleton(p) end
+Players.PlayerAdded:Connect(MakeSkeleton)
+Players.PlayerRemoving:Connect(RemoveSkeleton)
+RunService.RenderStepped:Connect(function()
+    pcall(function()
+        local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        for p, lines in pairs(SkeletonData) do
+            for _, l in ipairs(lines) do l.Visible = false end
+            local show = Vars.SkeletonEnabled and p.Character and myRoot
+            if show and Vars.SkeletonTeamCheck and p.Team == LP.Team then show = false end
+            if show then
+                local pRoot = p.Character:FindFirstChild("HumanoidRootPart")
+                if not pRoot or (myRoot.Position - pRoot.Position).Magnitude > Vars.SkeletonMaxDistance then show = false end
+            end
+            if show then
+                local conn = SkeletonConnections_R15
+                if not p.Character:FindFirstChild("UpperTorso") then conn = SkeletonConnections_R6 end
+                local idx = 1
+                for _, pair in ipairs(conn) do
+                    local a = p.Character:FindFirstChild(pair[1])
+                    local b = p.Character:FindFirstChild(pair[2])
+                    if a and b and lines[idx] then
+                        local ap, aOn = Cam:WorldToViewportPoint(a.Position)
+                        local bp, bOn = Cam:WorldToViewportPoint(b.Position)
+                        if aOn or bOn then
+                            local l = lines[idx]
+                            l.From = Vector2.new(ap.X, ap.Y); l.To = Vector2.new(bp.X, bp.Y)
+                            l.Color = Vars.SkeletonColor; l.Thickness = Vars.SkeletonThickness; l.Visible = true
+                        end
+                    end
+                    idx = idx + 1
+                end
+            end
+        end
+    end)
+end)
+
+local function ApplyChams(p)
+    if p == LP or not p.Character then return end
+    if chams[p] then pcall(function() chams[p]:Destroy() end) end
+    local ok, hl = pcall(function()
+        local h = Instance.new("Highlight")
+        h.Name = "SigmaChams"
+        h.FillColor = Vars.ChamsFill; h.OutlineColor = Vars.ChamsOutline
+        h.FillTransparency = Vars.ChamsTransparency; h.OutlineTransparency = 0
+        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        h.Parent = p.Character
+        return h
+    end)
+    if ok then chams[p] = hl end
+end
+local function RemoveChams(p)
+    if chams[p] then pcall(function() chams[p]:Destroy() end); chams[p] = nil end
+end
+RunService.Heartbeat:Connect(function()
+    pcall(function()
+        local myRoot = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p == LP then continue end
+            local show = Vars.ChamsEnabled and p.Character and myRoot
+            if show and Vars.ChamsTeamCheck and p.Team == LP.Team then show = false end
+            if show then
+                local root = p.Character:FindFirstChild("HumanoidRootPart")
+                if not root or (myRoot.Position - root.Position).Magnitude > Vars.ChamsMaxDistance then show = false end
+            end
+            if show then
+                if not chams[p] or not chams[p].Parent then ApplyChams(p) end
+                if chams[p] then
+                    chams[p].FillTransparency = Vars.ChamsTransparency
+                    chams[p].OutlineColor = Vars.ChamsOutline
+                    if Vars.ChamsRainbow then chams[p].FillColor = Color3.fromHSV((tick()*0.5)%1,1,1)
+                    else chams[p].FillColor = Vars.ChamsFill end
+                end
+            elseif chams[p] then RemoveChams(p) end
+        end
+    end)
+end)
+Players.PlayerRemoving:Connect(RemoveChams)
+
+RunService.Heartbeat:Connect(function()
+    pcall(function()
+        if not Vars.TargetHUDEnabled or not currentAimTarget then thFrame.Visible = false; return end
+        local ch = currentAimTarget; if not ch.Parent then thFrame.Visible = false; return end
+        local hum = ch:FindFirstChild("Humanoid"); local hrp = ch:FindFirstChild("HumanoidRootPart")
+        if not hum or not hrp or hum.Health <= 0 then thFrame.Visible = false; return end
+        local now = tick(); if now - lastTargetHUD < 0.15 then return end; lastTargetHUD = now
+        thFrame.Visible = true
+        local pl = Players:GetPlayerFromCharacter(ch)
+        if pl then
+            thName.Text = pl.DisplayName
+            pcall(function() thAvatar.Image = Players:GetUserThumbnailAsync(pl.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size150x150) end)
+            local held = GetWeapon(pl)
+        else
+            thName.Text = ch.Name; thAvatar.Image = ""
+        end
+        local mr = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        if mr then thDist.Text = "Distance: "..string.format("%.1f", (mr.Position - hrp.Position).Magnitude).."m" end
+        TS:Create(thHpFill, TweenInfo.new(0.15), {Size = UDim2.new(math.clamp(hum.Health/hum.MaxHealth, 0, 1),0,1,0)}):Play()
+    end)
+end)
+
+local plFrame = Instance.new("Frame", sg)
+plFrame.Size = UDim2.new(0,220,0,380)
+plFrame.Position = UDim2.new(0,10,0.25,0)
+plFrame.BackgroundColor3 = Color3.fromRGB(10,10,10)
+plFrame.BackgroundTransparency = 0.15
+plFrame.BorderSizePixel = 0
+plFrame.Active = true
+plFrame.Visible = false
+Instance.new("UICorner", plFrame).CornerRadius = UDim.new(0,6)
+local plTitle = Instance.new("TextLabel", plFrame)
+plTitle.Size = UDim2.new(1,0,0,25)
+plTitle.BackgroundTransparency = 1
+plTitle.Text = "player list"
+plTitle.Font = Enum.Font.GothamBold
+plTitle.TextSize = 11
+plTitle.TextColor3 = WHITE
+plTitle.TextXAlignment = Enum.TextXAlignment.Left
+local plTitlePad = Instance.new("UIPadding", plTitle)
+plTitlePad.PaddingLeft = UDim.new(0,10)
+local plScroll = Instance.new("ScrollingFrame", plFrame)
+plScroll.Size = UDim2.new(1,-10,1,-32)
+plScroll.Position = UDim2.fromOffset(5,28)
+plScroll.BackgroundTransparency = 1
+plScroll.BorderSizePixel = 0
+plScroll.ScrollBarThickness = 2
+plScroll.CanvasSize = UDim2.new()
+plScroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+local plLayout = Instance.new("UIListLayout", plScroll)
+plLayout.Padding = UDim.new(0,4)
+local plRows = {}
+
+local function RebuildPlayerList()
+    for _, row in pairs(plRows) do if row.Frame then pcall(function() row.Frame:Destroy() end) end end
+    plRows = {}
+    local players = {}
+    for _, p in ipairs(Players:GetPlayers()) do if p ~= LP then table.insert(players, p) end end
+    local mr = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+    if mr then
+        table.sort(players, function(a, b)
+            local aD = a.Character and a.Character:FindFirstChild("HumanoidRootPart") and (a.Character.HumanoidRootPart.Position - mr.Position).Magnitude or math.huge
+            local bD = b.Character and b.Character:FindFirstChild("HumanoidRootPart") and (b.Character.HumanoidRootPart.Position - mr.Position).Magnitude or math.huge
+            return aD < bD
+        end)
+    end
+    for i, p in ipairs(players) do
+        local row = Instance.new("Frame", plScroll)
+        row.Size = UDim2.new(1,0,0,32)
+        row.BackgroundColor3 = Color3.fromRGB(20,20,20)
+        row.BorderSizePixel = 0
+        row.LayoutOrder = i
+        Instance.new("UICorner", row).CornerRadius = UDim.new(0,3)
+        local nLbl = Instance.new("TextLabel", row)
+        nLbl.Size = UDim2.new(1,-50,0,14)
+        nLbl.Position = UDim2.fromOffset(8,2)
+        nLbl.BackgroundTransparency = 1
+        nLbl.Font = Enum.Font.GothamMedium
+        nLbl.TextSize = 10
+        nLbl.TextColor3 = WHITE
+        nLbl.TextXAlignment = Enum.TextXAlignment.Left
+        nLbl.Text = p.Name
+        nLbl.TextTruncate = Enum.TextTruncate.AtEnd
+        local dLbl = Instance.new("TextLabel", row)
+        dLbl.Size = UDim2.new(0,45,0,14)
+        dLbl.Position = UDim2.new(1,-53,0,2)
+        dLbl.BackgroundTransparency = 1
+        dLbl.Font = Enum.Font.Gotham
+        dLbl.TextSize = 9
+        dLbl.TextColor3 = MUTED
+        dLbl.TextXAlignment = Enum.TextXAlignment.Right
+        dLbl.Text = "0m"
+        local hpBg = Instance.new("Frame", row)
+        hpBg.Size = UDim2.new(1,-16,0,8)
+        hpBg.Position = UDim2.fromOffset(8,20)
+        hpBg.BackgroundColor3 = Color3.fromRGB(15,15,15)
+        hpBg.BorderSizePixel = 0
+        Instance.new("UICorner", hpBg).CornerRadius = UDim.new(0,2)
+        local hpFill = Instance.new("Frame", hpBg)
+        hpFill.Size = UDim2.new(1,0,1,0)
+        hpFill.BackgroundColor3 = Color3.fromRGB(100,200,100)
+        hpFill.BorderSizePixel = 0
+        Instance.new("UICorner", hpFill).CornerRadius = UDim.new(0,2)
+        plRows[p] = {Frame=row, Dist=dLbl, HP=hpFill}
+    end
+end
+
+RunService.Heartbeat:Connect(function()
+    pcall(function()
+        if not Vars.PlayerListEnabled then plFrame.Visible = false; return end
+        plFrame.Visible = true
+        local mr = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+        for p, row in pairs(plRows) do
+            if row.Frame and row.Frame.Parent then
+                if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local hum = p.Character:FindFirstChildOfClass("Humanoid")
+                    local hrp = p.Character.HumanoidRootPart
+                    local dist = mr and math.floor((mr.Position - hrp.Position).Magnitude) or 0
+                    row.Dist.Text = dist.."m"
+                    if hum then
+                        local hp = math.clamp(hum.Health/hum.MaxHealth, 0, 1)
+                        row.HP.Size = UDim2.new(hp,0,1,0)
+                        row.HP.BackgroundColor3 = Color3.fromRGB(math.floor(255*(1-hp)), math.floor(200*hp), 60)
+                    end
+                else
+                    row.Dist.Text = "dead"
+                    row.HP.Size = UDim2.new(0,0,1,0)
+                end
+            end
+        end
+    end)
+end)
+Players.PlayerAdded:Connect(function() task.wait(0.5); pcall(RebuildPlayerList) end)
+Players.PlayerRemoving:Connect(function() task.wait(0.5); pcall(RebuildPlayerList) end)
+task.spawn(function() task.wait(2); pcall(RebuildPlayerList) end)
+
+LP.CharacterAdded:Connect(function(char)
+    task.wait(1)
+    if Vars.FFEnabled then FF_Apply(char) end
+    Aura_RefreshAll()
+    PA_RefreshAll()
+end)
+
+UIS.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.RightShift then
+        main.Visible = not main.Visible
+    end
+end)
+
+local function makeDraggable()
+    local dragging = false
+    local dragStart, startPos
+    header.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            dragStart = UIS:GetMouseLocation()
+            startPos = main.Position
+        end
+    end)
+    UIS.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local m = UIS:GetMouseLocation()
+            local d = m - dragStart
+            main.Position = UDim2.fromOffset(startPos.X.Offset + d.X, startPos.Y.Offset + d.Y)
+        end
+    end)
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+    end)
+end
+makeDraggable()
+
+task.spawn(function()
+    task.wait(1)
+    pcall(function() Library:Notify("Sigma Universal loaded | t.me/megaswitifox", 5) end)
+end)
+print("=== Sigma Universal v5.5 READY ===")
